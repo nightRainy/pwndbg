@@ -632,3 +632,40 @@ def bin_addrs(b, bins_type):
     else:  # normal bin
         addrs, _, _ = b
     return addrs
+
+
+@pwndbg.commands.ParsedCommand
+@pwndbg.commands.OnlyWhenRunning
+def fake_fastbin_all(addr):
+    """
+    Finds candidate fake fast chunks that will overlap with the specified
+    address. Used for fastbin dups and house of spirit
+    """
+    main_heap = pwndbg.heap.current
+
+    max_fast = main_heap.global_max_fast
+    max_idx  = main_heap.fastbin_index(max_fast)
+    start    = int(addr) - int(max_fast)
+    mem      = pwndbg.memory.read(start, max_fast, partial=True)
+
+    fmt = {
+        'little': '<',
+        'big': '>'
+    }[pwndbg.arch.endian] + {
+        4: 'I',
+        8: 'Q'
+    }[pwndbg.arch.ptrsize]
+
+    print(C.banner("FAKE CHUNKS"))
+    for idx in range(max_idx +1):
+        if pwndbg.arch.ptrsize == 8:
+            print(message.hint(hex((idx+2)<<4))+": ")
+        else:
+            print(message.hint(hex((idx+2)<<3))+": ")
+
+        for offset in range(max_fast - pwndbg.arch.ptrsize):
+            candidate = mem[offset:offset + pwndbg.arch.ptrsize]
+            if len(candidate) == pwndbg.arch.ptrsize:
+                value = struct.unpack(fmt, candidate)[0]
+                if main_heap.fastbin_index(value&0xffffffff) == idx:
+                    print('[+]',hex(start+offset-pwndbg.arch.ptrsize),', padding len:',hex(int(addr)-start-offset-pwndbg.arch.ptrsize))
