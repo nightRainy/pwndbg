@@ -280,7 +280,14 @@ def malloc_chunk(addr,fake=False):
         header += message.hint(' IS_MMAPED')
     if non_main_arena:
         header += message.hint(' NON_MAIN_ARENA')
-    print(header, chunk["value"])
+
+    chunk_str='{\n'
+    for key in chunk["value"].type.keys():
+        chunk_str+='  %s = %s,\n'%(str(key),hex(int(chunk["value"][key])))
+    chunk_str+='}'
+
+    print(header, chunk_str)
+    #print(header, chunk["value"])
 
     return chunk
 
